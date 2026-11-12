@@ -30,7 +30,8 @@ namespace TempLat
       PlaneWavesZeroB,
       BunchDavisTransverseU1,
       DefectsNetwork,
-      DefectsWhiteNoise
+      DefectsWhiteNoise,
+      ExternalPSChiralU1
     };
 
     std::istream &operator>>(std::istream &in, InitialConditionsType::S &ICType)
@@ -71,6 +72,8 @@ namespace TempLat
         ICType = InitialConditionsType::U1::DefectsNetwork;
       else if (tmp == "DefectsWhiteNoise" || tmp == "6")
         ICType = InitialConditionsType::U1::DefectsWhiteNoise;
+      else if (tmp == "ExternalPSChiralU1" || tmp == "7")
+        ICType = InitialConditionsType::U1::ExternalPSChiralU1;
       else if (tmp.empty()) {
       } else
         throw(NotAnICType(tmp + " is not a valid initial condition for U(1), abort."));
@@ -108,6 +111,8 @@ namespace TempLat
         return out << "DefectsNetwork";
       else if (ICType == InitialConditionsType::U1::DefectsWhiteNoise)
         return out << "DefectsWhiteNoise";
+      else if (ICType == InitialConditionsType::U1::ExternalPSChiralU1)
+        return out << "ExternalPSChiralU1";
       return out;
     }
 
@@ -143,6 +148,8 @@ namespace TempLat
         return "DefectsNetwork";
       else if (ICType == InitialConditionsType::U1::DefectsWhiteNoise)
         return "DefectsWhiteNoise";
+      else if (ICType == InitialConditionsType::U1::ExternalPSChiralU1)
+        return "ExternalPSChiralU1";
       else
         return "";
     }

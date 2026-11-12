@@ -98,14 +98,19 @@ namespace TempLat
 
       if (RK2NStorageParameters<T>::isRK2n(runPars.eType) || RK2NStorageParameters<T>::isRK2n(runPars.diffType))
         allFlds1 = std::make_shared<FieldsAsInModel<Model>>(model, runPars, tag);
-      if constexpr (Model::NU1 > 0)
-        if (model.getU1IC() == InitialConditionsType::U1::PlaneWaves ||
-            model.getU1IC() == InitialConditionsType::U1::PlaneWavesZeroB) {
+      if constexpr (Model::NU1 > 0) {
+        // The IC actually used: the one from the input file, or the model's default.
+        const auto u1IC = runPars.U1IC == InitialConditionsType::U1::Default ? model.getU1IC() : runPars.U1IC;
+        if (allFlds1 == nullptr && (u1IC == InitialConditionsType::U1::PlaneWaves ||
+                                    u1IC == InitialConditionsType::U1::PlaneWavesZeroB ||
+                                    u1IC == InitialConditionsType::U1::BunchDavisTransverseU1 ||
+                                    u1IC == InitialConditionsType::U1::ExternalPSChiralU1)) {
           fldU1IC = std::make_shared<VectorField<Field<T, Model::NDim>>>("U1ICfldU1", model.getToolBox(),
                                                                          runPars.getLatParams());
           piU1IC = std::make_shared<VectorField<Field<T, Model::NDim>>>("U1ICpiU1", model.getToolBox(),
                                                                         runPars.getLatParams());
         }
+      }
     }
 
     std::shared_ptr<FieldsAsInModel<Model>> getAllFlds1() { return allFlds1; }

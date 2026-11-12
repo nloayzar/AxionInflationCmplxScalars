@@ -16,6 +16,7 @@
 #include "TempLat/util/rangeiteration/sum_in_range.h"
 #include "CosmoInterface/initializers/fluctuationsgenerator.h"
 #include "CosmoInterface/definitions/mattercurrents.h"
+#include "CosmoInterface/definitions/axioncouplings.h"
 #include "CosmoInterface/definitions/averages.h"
 #include "CosmoInterface/definitions/potential.h"
 #include "CosmoInterface/initializers/initialconditionstype.h"
@@ -60,7 +61,18 @@ namespace TempLat
         if (!Model::IsAxionU1Coupled)
           throw(RunParametersInconsistent("You have selected BunchDavisTransverseU1 for the U(1) field, but this "
                                           "option is only included for models with Axion-U(1) couplings."));
+        // With charged matter: set the complex scalars first, then the transverse gauge field, and finally add the
+        // longitudinal electric field required by the Gauss constraint.
+        if constexpr (Model::NCs > 0) initializeCScalar(model, fg, rPar.kCutoff);
         initializeBunchDavisTransverseU1(model, extps, rPar.kCutoff, extraFlds);
+        if constexpr (Model::NCs > 0) addLongitudinalElectricField(model, extraFlds);
+      } else if (flagU1IC == InitialConditionsType::U1::ExternalPSChiralU1) {
+        if (!Model::IsAxionU1Coupled)
+          throw(RunParametersInconsistent("You have selected ExternalPSChiralU1 for the U(1) field, but this "
+                                          "option is only included for models with Axion-U(1) couplings."));
+        if constexpr (Model::NCs > 0) initializeCScalar(model, fg, rPar.kCutoff);
+        initializeExternalPSChiralU1(model, extps, rPar.kCutoff, extraFlds);
+        if constexpr (Model::NCs > 0) addLongitudinalElectricField(model, extraFlds);
       } else if (flagU1IC == InitialConditionsType::U1::DefectsNetwork)
         initializeStringNetwork(model, fg, rPar.lcorr);
       else if (flagU1IC == InitialConditionsType::U1::DefectsWhiteNoise)
@@ -124,6 +136,67 @@ namespace TempLat
       ForLoop(n, 0, Model::NU1 - 1,
               extps.BunchDavisTransverseU1(model, model.fldU1(n), model.piU1(n), extraFlds.fldForPlaneWavesU1(),
                                            extraFlds.piForPlaneWavesU1(), model.aDotI, kCutOff);
+              model.fldU1(n) = model.getFluctuationRatio(FieldsNumbering::fldU1()) * model.fldU1(n);
+              model.piU1(n) = model.getFluctuationRatio(FieldsNumbering::piU1()) * model.piU1(n););
+    }
+
+    // Adds to the (purely transverse) electric field the longitudinal part required by the Gauss constraint
+    //
+    //     sum_i [E_i(x) - E_i(x - i)] / dx  =  -dx rho(x)  +  axion term,
+    //
+    // i.e. exactly the constraint monitored by GaussLaws::checkU1, with rho the charge density of the complex
+    // scalars (MatterCurrents::U1ChargeDensity) and the axion term -(alpha/Lambda) grad(phi).B
+    // (AxionCouplings::ScalarAxionGaussLaw). The latter is only included if the axion-gradient couplings are
+    // active from the start (tNonLinearAxionU1 < 0), so that the imposed constraint is the one preserved by the
+    // evolution; it vanishes anyway for a homogeneous axion (default IC of an axion coupled to a U(1)).
+    //
+    // Since the transverse part has exactly zero lattice divergence, the longitudinal solution is simply added, as in
+    // initializeRandomWithMatterU1:  E_i(k) += conj(keffm_i) / |keffm|^2 * j0(k),  keffm_i = 1 - e^{-2 pi i n_i/N}.
+    // Must be called after the complex scalars (charge density) and the gauge field (magnetic field) are set.
+    template <class Model>
+    static void addLongitudinalElectricField(Model &model, ExtraFields<Model> extraFlds)
+    {
+      using T = typename Model::FloatType;
+      FourierSite<Model::NDim> ntilde(model.getToolBox());
+      size_t N = GetNGrid::get(model);
+
+      auto expIK = MakeVector(i, 1, Model::NDim, complexPhase(-2 * Constants::pi<T> / N * ntilde(i)));
+      auto keffm = MakeVector(i, 1, Model::NDim, 1_c - expIK(i));
+      auto keffm2 = Total(i, 1, Model::NDim, norm2(keffm(i)));
+
+      const T axionSwitch = (model.tNonLinearAxionU1 < 0) ? T(1) : T(0);
+
+      // Scratch field to store the source (free at this point, it was only used by the transverse initialisation).
+      auto j0 = extraFlds.piForPlaneWavesU1()(1_c);
+
+      ForLoop(a, 0, Model::NU1 - 1,
+              j0 = -pow<2>(model.dx) * MatterCurrents::U1ChargeDensity(model, a) +
+                   axionSwitch * model.dx * AxionCouplings::ScalarAxionGaussLaw(model, a);
+
+              ForLoop(i, 1, Model::NDim,
+                      model.piU1(a)(i).inFourierSpace() = model.piU1(a)(i).inFourierSpace() +
+                                                          asFourier(conj(keffm(i)) * (1 / keffm2)) * j0.inFourierSpace();
+                      model.piU1(a)(i).inFourierSpace().setZeroMode(0);););
+    }
+
+    // Gauge fields and electric fields of both helicities from an external (chiral) power spectrum,
+    // see ExternalPowerSpectrumInitializer::ExternalPSChiralU1.
+    template <class Model, typename T>
+    static void initializeExternalPSChiralU1(Model &model, ExternalPowerSpectrumInitializer<T> &extps, T kCutOff,
+                                             ExtraFields<Model> extraFlds)
+    {
+      if (model.kExcitedU1 > 0 && !(model.vExcitedU1 > 0))
+        throw(RunParametersInconsistent("ExternalPSChiralU1: kExcited > 0 requires Velocity_Transition_Excited > 0."));
+
+      ForLoop(n, 0, Model::NU1 - 1, const std::string &file = model.extPSgauge[int(n)];
+              if (file == Constants::defaultString || file.empty() || file == "None" || file == "none") throw(
+                  RunParametersMissing("ICtype_U1 = ExternalPSChiralU1 requires the input parameter ext_PSgauge" +
+                                       std::to_string(int(n)) + " (path to the spectrum file of U(1) field " +
+                                       std::to_string(int(n)) + ")."));
+
+              extps.ExternalPSChiralU1(model, model.fldU1(n), model.piU1(n), extraFlds.fldForPlaneWavesU1(), file,
+                                       model.extPSgaugePhysicalUnits, model.aDotI, model.kExcitedU1,
+                                       model.vExcitedU1, kCutOff);
               model.fldU1(n) = model.getFluctuationRatio(FieldsNumbering::fldU1()) * model.fldU1(n);
               model.piU1(n) = model.getFluctuationRatio(FieldsNumbering::piU1()) * model.piU1(n););
     }

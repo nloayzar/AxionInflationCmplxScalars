@@ -150,7 +150,11 @@ namespace TempLat
           tRP0(doResolutionPreserving ? par.get<T>("tRP0", t0) : t0),
           tRPMax(doResolutionPreserving ? par.get<T>("tRPMax", gettRPMaxtening()) : t0),
           measureDefectsEnergies(par.get<bool>("measureDefectsEnergies", false)),
-          measureDefectsStructure(par.get<bool>("measureDefectsStructure", false))
+          measureDefectsStructure(par.get<bool>("measureDefectsStructure", false)),
+          eFolds(expansion ? par.get<bool>("eFolds", false, Important)
+                           : false) // If true: the time variable is the number of e-folds N = log(a), with dN = dt (RK
+                                    // evolvers and self-consistent expansion only). t0, tMax, dt, output times and
+                                    // tNonLinearAxionU1 are then given in e-folds.
     {
       // The size of the lattice can be specified with any of kIR, lSide or dx. At least one of them is
       // needed, and any subset which is given must obey lSide = 2*pi/kIR = N*dx.
@@ -335,6 +339,8 @@ namespace TempLat
 
     bool measureDefectsEnergies;
     bool measureDefectsStructure;
+
+    const bool eFolds;
 
     LatticeParameters<T> getLatParams() { return LatticeParameters<T>(dx, lSide, kIR); }
 

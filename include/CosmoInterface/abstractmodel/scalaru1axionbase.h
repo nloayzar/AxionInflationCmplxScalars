@@ -37,10 +37,28 @@ namespace TempLat
     // Time to switch from linear to non-linear evolution for AxionU1 coupling
     T tNonLinearAxionU1;
 
+    // Parameters of the ExternalPSChiralU1 initial conditions (ICtype_U1 = ExternalPSChiralU1):
+    //  - extPSgauge[a]: file with columns k, P_A+, P_E+, P_A-, P_E- for U(1) field a (input "ext_PSgauge<a>").
+    //  - extPSgaugePhysicalUnits: false -> the file is in program units, true -> in GeV units
+    //    (input "ext_PSgauge_physicalUnits").
+    //  - kExcitedU1, vExcitedU1: scale separating amplified from Bunch-Davies positive-helicity modes and steepness
+    //    of the transition in log10(k), used for the phase of E+ (inputs "kExcited", "Velocity_Transition_Excited").
+    //    kExcited <= 0 means all modes follow the Bunch-Davies relation E = -i k A.
+    std::vector<std::string> extPSgauge;
+    bool extPSgaugePhysicalUnits;
+    T kExcitedU1, vExcitedU1;
+
   protected:
     ScalarU1AxionBase(ParameterParser &parser)
     {
       tNonLinearAxionU1 = parser.get<T>("tNonLinearAxionU1", -1);
+
+      extPSgauge.resize(ScalarU1AxionCouplings::nGauge);
+      for (int a = 0; a < ScalarU1AxionCouplings::nGauge; ++a)
+        extPSgauge[a] = parser.get<std::string>("ext_PSgauge" + std::to_string(a), Constants::defaultString);
+      extPSgaugePhysicalUnits = parser.get<bool>("ext_PSgauge_physicalUnits", false);
+      kExcitedU1 = parser.get<T>("kExcited", T(0));
+      vExcitedU1 = parser.get<T>("Velocity_Transition_Excited", T(0));
       auto gAxionU1 = parser.get<T, ScalarU1AxionCouplings::nGauge>("gAxionU1", 1.0);
       auto AxionU1Charges = parser.get<T, ScalarU1AxionCouplings::howManyCouples()>("alphaLambda_AxionU1", 1);
       alphaLambda_SU1.setEffectiveCharges(AxionU1Charges, gAxionU1);

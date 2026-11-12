@@ -11,6 +11,7 @@
 #include "CosmoInterface/evolvers/rk2nstorageparameters.h"
 #include "CosmoInterface/evolvers/kernels/kernels.h"
 #include "CosmoInterface/evolvers/kernels/kernelstypes.h"
+#include "CosmoInterface/evolvers/kernels/hubbleratekernels.h"
 #include "CosmoInterface/definitions/averages.h"
 #include "CosmoInterface/definitions/nonminimalcoupling.h"
 #include "CosmoInterface/definitions/fixedbackgroundexpansion.h"
@@ -59,22 +60,24 @@ namespace TempLat
 
       dt = KernelsTypes::getDt(model, kt);
 
-      kt.cache(model, tMinust0); // To be able to store some temporary info in the kernel type
       const T aStart = model.aI;
+      if constexpr (std::is_same_v<KernelType, KernelsTypes::EFolds<Model>>) hubbleRate = model.aDotI / model.aI;
+
+      kt.cache(model, tMinust0); // To be able to store some temporary info in the kernel type
 
       // @label:rk2nstorage_genericloop
       for (size_t i = 0; i < As.size(); ++i) { // loop over operations...
 
         ForEachField(
             Model, fld, n, if (!isDeactivated[fld][n]) {
-              isDefined[fld][n] = delta(i, Delta->get(fld)(n), Kernels::get(fld, model, n, kt));
+              isDefined[fld][n] = delta(i, Delta->get(fld)(n), Kernels::evolutionKernel(fld, model, n, kt));
             });
 
         if (expansion) sfDefined = deltaScaleFactor(model, i, kt);
 
         ForEachField(Model, fld, n, if (!isDeactivated[fld][n] && isDefined[fld][n]) { advance(i, fld, model, n); });
 
-        if (expansion) advanceScaleFactor(model, i, tMinust0);
+        if (expansion) advanceScaleFactor(model, i, tMinust0, aStart, kt);
 
         if (expansion) {
           Averages::setAllAverages(model);
@@ -102,6 +105,32 @@ namespace TempLat
       return false;
     }
     template <class KernelType> bool deltaScaleFactor(Model &model, size_t i, KernelType) { return false; }
+
+    // E-fold evolution: the program Hubble rate aDot/a is the evolved background variable (as in the old
+    // implementation), the scale factor being an explicit function of the time variable, a = aStart exp(N - N_start).
+    bool deltaScaleFactor(Model &model, size_t i, KernelsTypes::EFolds<Model> kt)
+    {
+      if (i == 0)
+        deltaHubble = dt * HubbleRateKernels::get(model, kt);
+      else
+        deltaHubble = As[i] * deltaHubble + dt * HubbleRateKernels::get(model, kt);
+      return true;
+    }
+
+    template <class KernelType>
+    void advanceScaleFactor(Model &model, size_t i, T tMinust0, T /* aStart */, KernelType)
+    {
+      advanceScaleFactor(model, i, tMinust0);
+    }
+
+    void advanceScaleFactor(Model &model, size_t i, T /* tMinust0 */, T aStart, KernelsTypes::EFolds<Model>)
+    {
+      hubbleRate += Bs[i] * deltaHubble;
+      // After the i-th stage the fields live at N_start + c_{i+1} dN (c_{i+1} = 1 after the last stage).
+      const T cNext = (i + 1 < Cs.size()) ? Cs[i + 1] : T(1);
+      model.aI = aStart * exp(cNext * dt);
+      model.aDotI = hubbleRate * model.aI;
+    }
 
     void advanceScaleFactor(Model &model, size_t i, T tMinust0)
     {
@@ -194,6 +223,7 @@ namespace TempLat
     std::array<std::vector<bool>, FieldsNumbering::maxNum + 1> isDeactivated;
 
     T deltaA, deltaADot;
+    T deltaHubble, hubbleRate; // E-fold evolution only
     bool sfDefined;
 
     bool expansion;

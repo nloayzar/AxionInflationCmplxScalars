@@ -11,6 +11,8 @@
 
 #include "CosmoInterface/fieldsnumbering.h"
 
+#include <type_traits>
+
 namespace TempLat::Kernels
 {
 
@@ -72,6 +74,28 @@ namespace TempLat::Kernels
   static inline auto get(FieldsNumbering::piSU2, Model &model, Tag<N> n, KernelType kt)
   {
     return SU2Kernels::get(model, n, kt);
+  }
+  /** @brief Kernel used by the evolvers for the field FLD, for a given kernel type. By default the kernel type selects
+   * the corresponding overload of get() above.
+   **/
+  template <class Model, int FLD, int N, class KernelType>
+  static inline auto evolutionKernel(Tag<FLD> fld, Model &model, Tag<N> n, KernelType kt)
+  {
+    return get(fld, model, n, kt);
+  }
+
+  /** @brief E-fold kernels: the standard equations of motion rescaled by the inverse program Hubble rate,
+   * dX/dN = (a / aDot) dX/dtau. Kernels which vanish identically (ZeroType) are kept as such, so that the evolver
+   * still skips the corresponding fields.
+   **/
+  template <class Model, int FLD, int N>
+  static inline auto evolutionKernel(Tag<FLD> fld, Model &model, Tag<N> n, KernelsTypes::EFolds<Model> kt)
+  {
+    auto kernel = get(fld, model, n, kt.eom());
+    if constexpr (std::is_same_v<std::decay_t<decltype(kernel)>, ZeroType>)
+      return kernel;
+    else
+      return kt.invHubble * kernel;
   }
 } // namespace TempLat::Kernels
 

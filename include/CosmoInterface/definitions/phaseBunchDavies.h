@@ -10,6 +10,7 @@
 #include <complex>
 
 #include "TempLat/util/tdd/tdd.h"
+#include "TempLat/util/constants.h"
 #include "TempLat/lattice/algebra/coordinates/dimensioncountrecorder.h"
 #include "TempLat/lattice/algebra/helpers/isvariadicindex.h"
 
@@ -74,6 +75,69 @@ namespace TempLat
   template <typename T, size_t NDim> using BDPhasePi2A = BDPhaseHelper<T, NDim, true>;
 
   template <typename T, size_t NDim> using BDPhasePi2E = BDPhaseHelper<T, NDim, false>;
+
+  /** @brief Phase of the electric field of an amplified (excited) helicity, interpolating between an
+   * amplified growing mode and the Bunch-Davies relation E = -i k A.
+   *
+   * Returns exp{ i [ k/(aH) - (pi/2) s(k) ] } with
+   *     s(k) = 1/2 [ 1 + tanh( (log10 k - log10 kExc) * vExc ) ].
+   *  - k << kExc: s -> 0, E has the same phase as A (tachyonically amplified, effectively real growing mode).
+   *  - k >> kExc: s -> 1, E = -i e^{ik/aH}, i.e. the Bunch-Davies relation, identical to BDPhasePi2E.
+   * vExc sets how sharp the transition is in log10(k). If kExc <= 0, s = 1 for all modes (pure Bunch-Davies).
+   *
+   * Hermiticity of the R2C layout is handled as in BDPhaseHelper.
+   */
+  template <typename T, size_t NDim> class ExcitedBDPhaseE : public DimensionCountRecorder<NDim>
+  {
+  public:
+    using ToolboxPtr = device::memory::host_ptr<MemoryToolBox<NDim>>;
+
+    ExcitedBDPhaseE(ToolboxPtr pToolBox, T kIR, T aI, T kExc, T vExc)
+        : DimensionCountRecorder<NDim>(SpaceStateType::Fourier), mLayout(pToolBox->mLayouts.getFourierSpaceLayout()),
+          mkIR(kIR), maI(aI), mkExc(kExc), mvExc(vExc)
+    {
+    }
+
+    template <typename... IDX>
+      requires IsVariadicNDIndex<NDim, IDX...>
+    DEVICE_FORCEINLINE_FUNCTION complex<T> eval(const IDX &...idx) const
+    {
+      device::IdxArray<NDim> coord;
+      mLayout.putSpatialLocationFromMemoryIndexInto(coord, idx...);
+
+      device::IdxArray<NDim> hermitianPartner;
+      const auto hermitianType =
+          this->getCurrentLayout().getHermitianPartners().putHermitianPartner(coord, hermitianPartner);
+
+      T ki2 = 0;
+      for (size_t d = 0; d < NDim; ++d)
+        ki2 += coord[d] * coord[d];
+      const T ki = mkIR * sqrt(ki2);
+
+      // Fraction of the -pi/2 Bunch-Davies shift applied to this mode (zero mode: s = 0, it is set to 0 anyway).
+      T s = T(1);
+      if (mkExc > T(0)) s = (ki > T(0)) ? T(0.5) * (T(1) + tanh((log10(ki) - log10(mkExc)) * mvExc)) : T(0);
+
+      const T x = ki / maI - T(0.5) * Constants::pi<T> * s;
+      const device::array<T, 2> pair = {cos(x), sin(x)};
+
+      return complex<T>(
+          (hermitianType == HermitianRedundancy::none || hermitianType == HermitianRedundancy::positivePartner ||
+           hermitianType == HermitianRedundancy::negativePartner)
+              ? pair[0]
+              : T(1),
+          (hermitianType == HermitianRedundancy::none || hermitianType == HermitianRedundancy::positivePartner)
+              ? pair[1]
+              : (hermitianType == HermitianRedundancy::negativePartner ? -pair[1] : T(0)));
+    }
+
+  private:
+    LayoutStruct<NDim> mLayout;
+    T mkIR;
+    T maI;
+    T mkExc;
+    T mvExc;
+  };
 } // namespace TempLat
 
 #endif

@@ -25,10 +25,12 @@ namespace TempLat
 
     InitialConditionsType::U1 getU1IC()
     {
-      if constexpr (NC > 0)
-        return InitialConditionsType::U1::RandomWithMatter;
-      else if constexpr (NS > 0 && SCALARU1AXIONCOUPLINGS::howManyCouples() > 0)
+      // Axion-U(1) models start from Bunch-Davies transverse gauge fields; if complex scalars are also present, the
+      // longitudinal electric field required by their charge is added on top (see U1Initializer).
+      if constexpr (NS > 0 && SCALARU1AXIONCOUPLINGS::howManyCouples() > 0)
         return InitialConditionsType::U1::BunchDavisTransverseU1;
+      else if constexpr (NC > 0)
+        return InitialConditionsType::U1::RandomWithMatter;
       else
         return InitialConditionsType::U1::PlaneWavesZeroB;
     }

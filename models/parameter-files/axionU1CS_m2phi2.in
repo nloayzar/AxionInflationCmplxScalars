@@ -1,0 +1,64 @@
+#Output
+outputfile = ./
+print_headers = true
+overwriteFiles = false
+
+#Evolution
+expansion = true
+evolver = RK2
+# Time variable. eFolds = false (default): program time tau, d tau = omegaStar dt (alpha = 0).
+# eFolds = true: number of e-folds N = log(a/a0) (RK evolvers and self-consistent expansion only). The program Hubble rate
+# is evolved with dH/dN = -(fStar/MPl)^2 (3K + G + 2(E+B)) / (3H) and a = a0 exp(N). dt, t0, tMax, the output times and
+# tNonLinearAxionU1 are then given in e-folds.
+eFolds = false
+
+#Lattice
+N = 64
+dt = 0.005
+kIR = 1
+
+#Times
+tOutputFreq = 0.05
+tOutputInfreq = 0.5
+tOutputRareFreq = 5
+tMax = 10
+
+# Sets the time at which the full non-linear dynamics of the axion system is taken into account (in e-folds if
+# eFolds = true). For t < tNonLinearAxionU1, the system is evolved on the linear regime of Axion U(1)
+tNonLinearAxionU1 = 1.5
+
+#Spectra options
+PS_type = 1
+PS_version = 1
+flagChiralPS = true
+
+#GW options
+withGWs = false
+GWprojectorType = 1
+
+#IC
+kCutOff = 30
+initial_amplitudes = 3.39928e18  # axion homogeneous amplitude in GeV
+initial_momenta = -3.0714e31     # axion homogeneous velocity in GeV2
+cmplx_field_initial_norm = 0     # |chi| homogeneous amplitude in GeV (default 0: only vacuum fluctuations)
+cmplx_momentum_initial_norm = 0  # d|chi|/dt homogeneous value in GeV2 (default 0)
+
+# Gauge field initial conditions. Default for this model: BunchDavisTransverseU1.
+# In both BunchDavisTransverseU1 and ExternalPSChiralU1 the complex scalar is initialised first, then the transverse
+# gauge field, and finally the longitudinal electric field fixed by the Gauss constraint is added.
+#ICtype_U1 = ExternalPSChiralU1
+#ext_PSgauge0 = ./gaugePS.dat           # columns: k  P_A+  P_E+  P_A-  P_E-  (Bunch-Davies: 1/2k  k/2  1/2k  k/2)
+#ext_PSgauge_physicalUnits = false
+#kExcited = 3.62
+#Velocity_Transition_Excited = 13
+
+#Axion U1 coupling
+alphaLambda_AxionU1 = 13
+
+#U1 gauge coupling and charge of the complex scalar
+gU1s = 0.3
+CSU1_charges = 1
+
+#Model Parameters
+Mass = 1.5e13      # axion mass in GeV
+MassCS = 1.5e13    # complex scalar mass in GeV

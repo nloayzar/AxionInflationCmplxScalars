@@ -36,6 +36,14 @@ kCutOff = 30
 initial_amplitudes = 3.39928e18  # homogeneous amplitudes in GeV
 initial_momenta = -3.0714e31     # homogeneous amplitudes in GeV2
 
+# Gauge field initial conditions. Default (for this model): BunchDavisTransverseU1.
+# To initialise both helicities of A and E from an external spectrum instead, uncomment:
+#ICtype_U1 = ExternalPSChiralU1
+#ext_PSgauge0 = ./gaugePS.dat           # columns: k  P_A+  P_E+  P_A-  P_E-  (Bunch-Davies: 1/2k  k/2  1/2k  k/2)
+#ext_PSgauge_physicalUnits = false     # false: file in program units (default); true: in GeV units
+#kExcited = 3.62                       # E+ in phase with A+ for k << kExcited, Bunch-Davies (E = -ikA) for k >> kExcited
+#Velocity_Transition_Excited = 13      # steepness of that transition in log10(k); kExcited <= 0: pure Bunch-Davies
+
 #Axion U1 coupling
 alphaLambda_AxionU1 = 13
 

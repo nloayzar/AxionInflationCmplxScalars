@@ -25,6 +25,7 @@ namespace TempLat
   MakeException(EvolverTypeNotInEvolver);
   MakeException(InvalidEvolverTypeGW);
   MakeException(InvalidEvolverTypeAxion);
+  MakeException(InvalidEFoldsEvolution);
 
   // Helper to read IsAxionU1Coupled safely (avoids problems in models without axion couplings)
   template <typename M, typename = void> struct CheckAxionU1 {
@@ -49,7 +50,7 @@ namespace TempLat
           vv(VelocityVerletParameters<T>::isVerlet(type) ? std::make_shared<VelocityVerlet<T>>(model, rPar) : nullptr),
           pv(PositionVerletParameters<T>::isVerlet(type) ? std::make_shared<PositionVerlet<T>>(model, rPar) : nullptr),
           rk2n(RK2NStorageParameters<T>::isRK2n(type) ? std::make_shared<RK2NStorage<Model>>(model, rPar) : nullptr),
-          GWsynced(!rPar.doWeRestart)
+          GWsynced(!rPar.doWeRestart), eFolds(rPar.eFolds)
     {
       // RK2N needs Delta wired up here.
       if (rk2n != nullptr) {
@@ -95,6 +96,28 @@ namespace TempLat
             "The evolution of a model with an Axion-U(1) coupling requires a Runge-Kutta (RK) evolver. Other evolvers "
             "(LF, VV, PV) are not supported for this coupling. Abort."));
       }
+      //
+      if (eFolds) {
+        if (!RK2NStorageParameters<T>::isRK2n(type))
+          throw(InvalidEFoldsEvolution("The evolution in e-folds (eFolds = true) is only implemented for the Runge-Kutta "
+                                       "(RK) evolvers. Abort."));
+        if (!rPar.expansion || rPar.fixedBackground)
+          throw(InvalidEFoldsEvolution("The evolution in e-folds (eFolds = true) requires a self-consistent expansion "
+                                       "(expansion = true, fixedBackground = false). Abort."));
+        if (model.fldGWs != nullptr)
+          throw(InvalidEFoldsEvolution("The evolution in e-folds (eFolds = true) is not implemented for gravitational "
+                                       "waves (withGWs = true). Abort."));
+        if constexpr (Model::IsNonMinimallyCoupled)
+          throw(InvalidEFoldsEvolution("The evolution in e-folds (eFolds = true) is not implemented for non-minimally "
+                                       "coupled models. Abort."));
+        if constexpr (Model::DefectsModel)
+          if (rPar.doResolutionPreserving)
+            throw(InvalidEFoldsEvolution("The evolution in e-folds (eFolds = true) is not compatible with "
+                                         "resolution-preserving techniques. Abort."));
+        if (!(model.aDotI > 0))
+          throw(InvalidEFoldsEvolution("The evolution in e-folds (eFolds = true) requires an expanding background "
+                                       "(aDot > 0 at the initial time). Abort."));
+      }
     }
     // @endlabel
 
@@ -109,7 +132,10 @@ namespace TempLat
       if (type == LF) {
         lf->evolve(model, tMinust0);
       } else if (RK2NStorageParameters<T>::isRK2n(type)) {
-        rk2n->evolve(model, tMinust0, EoMKernels);
+        if (eFolds)
+          rk2n->evolve(model, tMinust0, EFoldsKernels);
+        else
+          rk2n->evolve(model, tMinust0, EoMKernels);
       } else if (PositionVerletParameters<T>::isVerlet(type)) {
         pv->evolve(model, tMinust0, typeGW == type);
       } else {
@@ -193,6 +219,8 @@ namespace TempLat
     mutable bool GWsynced;
 
     KernelsTypes::EoM<Model> EoMKernels;
+    const bool eFolds; // If true, the time variable is the number of e-folds (RK evolvers only).
+    KernelsTypes::EFolds<Model> EFoldsKernels;
     // @endlabel
   };
 
