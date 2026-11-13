@@ -60,7 +60,7 @@ namespace TempLat
       } else if (flagSIC == InitialConditionsType::S::DefectsNetwork)
         initializeScalarDefectsNetwork(model, fg, rPar.lcorr);
       else if (flagSIC == InitialConditionsType::S::DefectsWhiteNoise)
-        initializeScalarDefectsWhiteNoise(model, fg, rPar.kCutoff, rPar.deltaNoise);
+        initializeScalarDefectsWhiteNoise(model, fg, rPar.kCutoffS, rPar.deltaNoise);
       else if (flagSIC != InitialConditionsType::S::Homogeneous)
         throw(SICNotImplemented("The initial condition provided for scalars is not implemented."));
 
@@ -90,11 +90,11 @@ namespace TempLat
             // @endlabel
             // @label:default_scalar_dispatch
             fg.conjugateGaussianFluctuations(model, model.fldS(i), model.piS(i), model.masses2S[i], model.aDotI,
-                                             rPar.kCutoff);
+                                             rPar.kCutoffS);
             // @endlabel
           } else {
             // @label:externalps_scalar_dispatch
-            extps.conjugateGaussianInputFluctuations(model, model.fldS(i), model.piS(i), s, rPar.kCutoff,
+            extps.conjugateGaussianInputFluctuations(model, model.fldS(i), model.piS(i), s, rPar.kCutoffS,
                                                      rPar.powerSpectrumType);
             // @endlabel
           }

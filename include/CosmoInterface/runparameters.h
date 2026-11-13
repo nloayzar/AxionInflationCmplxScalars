@@ -152,9 +152,15 @@ namespace TempLat
           measureDefectsEnergies(par.get<bool>("measureDefectsEnergies", false)),
           measureDefectsStructure(par.get<bool>("measureDefectsStructure", false)),
           eFolds(expansion ? par.get<bool>("eFolds", false, Important)
-                           : false) // If true: the time variable is the number of e-folds N = log(a), with dN = dt (RK
-                                    // evolvers and self-consistent expansion only). t0, tMax, dt, output times and
-                                    // tNonLinearAxionU1 are then given in e-folds.
+                           : false), // If true: the time variable is the number of e-folds N = log(a), with dN = dt (RK
+                                     // evolvers and self-consistent expansion only). t0, tMax, dt, output times and
+                                     // tNonLinearAxionU1 are then given in e-folds.
+          // Field-specific momentum cutoffs of the initial fluctuations. Each defaults to kCutOff, so that a single
+          // kCutOff keeps applying to all fields unless a specific one is given.
+          kCutoffS(par.get<T>("kCutOff_S", kCutoff)),                   // scalar singlets
+          kCutoffCS(par.get<T>("kCutOff_CS", kCutoff)),                 // complex scalars
+          kCutoffSU2Doublet(par.get<T>("kCutOff_SU2Doublet", kCutoff)), // SU(2) doublets
+          kCutoffU1(par.get<T>("kCutOff_U1", kCutoff))                  // U(1) gauge fields
     {
       // The size of the lattice can be specified with any of kIR, lSide or dx. At least one of them is
       // needed, and any subset which is given must obey lSide = 2*pi/kIR = N*dx.
@@ -341,6 +347,12 @@ namespace TempLat
     bool measureDefectsStructure;
 
     const bool eFolds;
+
+    // Field-specific cutoffs of the initial fluctuations (default: kCutoff).
+    const T kCutoffS;
+    const T kCutoffCS;
+    const T kCutoffSU2Doublet;
+    const T kCutoffU1;
 
     LatticeParameters<T> getLatParams() { return LatticeParameters<T>(dx, lSide, kIR); }
 

@@ -59,7 +59,7 @@ namespace TempLat
 
       // Initialize the SU2 gauge fields and SU2 doublets:
       //  --> Note: It is important to initialize SU2 first, as the doublet contributes to the U1 currents.
-      if constexpr (Model::NSU2Doublet > 0) SU2Initializer::initializeSU2(model, fg, rPar.kCutoff);
+      if constexpr (Model::NSU2Doublet > 0) SU2Initializer::initializeSU2(model, fg, rPar.kCutoffSU2Doublet);
 
       // Initialize the U1 gauge fields and complex scalars:
       if constexpr (Model::NCs > 0 || Model::NU1 > 0) U1Initializer::initializeU1(model, fg, extps, rPar, extraFields);

@@ -54,29 +54,29 @@ namespace TempLat
       if (rPar.U1IC == InitialConditionsType::U1::Default) flagU1IC = model.getU1IC();
 
       if (flagU1IC == InitialConditionsType::U1::RandomWithMatter)
-        initializeRandomWithMatterU1(model, fg, rPar.kCutoff);
+        initializeRandomWithMatterU1(model, fg, rPar.kCutoffCS);
       else if (flagU1IC == InitialConditionsType::U1::PlaneWavesZeroB)
-        initializePlaneWavesZeroBU1(model, fg, rPar.kCutoff, extraFlds);
+        initializePlaneWavesZeroBU1(model, fg, rPar.kCutoffU1, extraFlds);
       else if (flagU1IC == InitialConditionsType::U1::BunchDavisTransverseU1) {
         if (!Model::IsAxionU1Coupled)
           throw(RunParametersInconsistent("You have selected BunchDavisTransverseU1 for the U(1) field, but this "
                                           "option is only included for models with Axion-U(1) couplings."));
         // With charged matter: set the complex scalars first, then the transverse gauge field, and finally add the
         // longitudinal electric field required by the Gauss constraint.
-        if constexpr (Model::NCs > 0) initializeCScalar(model, fg, rPar.kCutoff);
-        initializeBunchDavisTransverseU1(model, extps, rPar.kCutoff, extraFlds);
+        if constexpr (Model::NCs > 0) initializeCScalar(model, fg, rPar.kCutoffCS);
+        initializeBunchDavisTransverseU1(model, extps, rPar.kCutoffU1, extraFlds);
         if constexpr (Model::NCs > 0) addLongitudinalElectricField(model, extraFlds);
       } else if (flagU1IC == InitialConditionsType::U1::ExternalPSChiralU1) {
         if (!Model::IsAxionU1Coupled)
           throw(RunParametersInconsistent("You have selected ExternalPSChiralU1 for the U(1) field, but this "
                                           "option is only included for models with Axion-U(1) couplings."));
-        if constexpr (Model::NCs > 0) initializeCScalar(model, fg, rPar.kCutoff);
-        initializeExternalPSChiralU1(model, extps, rPar.kCutoff, extraFlds);
+        if constexpr (Model::NCs > 0) initializeCScalar(model, fg, rPar.kCutoffCS);
+        initializeExternalPSChiralU1(model, extps, rPar.kCutoffU1, extraFlds);
         if constexpr (Model::NCs > 0) addLongitudinalElectricField(model, extraFlds);
       } else if (flagU1IC == InitialConditionsType::U1::DefectsNetwork)
         initializeStringNetwork(model, fg, rPar.lcorr);
       else if (flagU1IC == InitialConditionsType::U1::DefectsWhiteNoise)
-        initializeStringNoise(model, fg, rPar.kCutoff, rPar.deltaNoise);
+        initializeStringNoise(model, fg, rPar.kCutoffCS, rPar.deltaNoise);
       else
         throw(U1ICNotImplemented("The initial condition provided for U1 is not implemented."));
     }
